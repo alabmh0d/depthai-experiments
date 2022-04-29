@@ -135,7 +135,25 @@ def create_pipeline(stereo):
     age_gender_nn_xout = pipeline.create(dai.node.XLinkOut)
     age_gender_nn_xout.setStreamName("recognition")
     age_gender_nn.out.link(age_gender_nn_xout.input)
+    
+    ## object tracker
+    # Create and configure the object tracker
+    objectTracker = pipeline.create(dai.node.ObjectTracker)
+    # objectTracker.setDetectionLabelsToTrack([0])  # track only person
+    # possible tracking types: ZERO_TERM_COLOR_HISTOGRAM, ZERO_TERM_IMAGELESS, SHORT_TERM_IMAGELESS, SHORT_TERM_KCF
+    objectTracker.setTrackerType(dai.TrackerType.ZERO_TERM_COLOR_HISTOGRAM)
+    # take the smallest ID when new object is tracked, possible options: SMALLEST_ID, UNIQUE_ID
+    objectTracker.setTrackerIdAssignmentPolicy(dai.TrackerIdAssignmentPolicy.UNIQUE_ID)
 
+    # Link detection networks outputs to the object tracker
+    face_det_nn.passthrough.link(objectTracker.inputTrackerFrame)
+    face_det_nn.passthrough.link(objectTracker.inputDetectionFrame)
+    face_det_nn.out.link(objectTracker.inputDetections)
+
+    # Send tracklets to the host
+    trackerOut = pipeline.create(dai.node.XLinkOut)
+    trackerOut.setStreamName("tracklets")
+    objectTracker.out.link(trackerOut.input)
     return pipeline
 
 with dai.Device() as device:
